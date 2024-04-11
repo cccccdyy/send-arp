@@ -70,6 +70,7 @@ int main(int argc, char* argv[]) {
 	for(int i = 1; i < count + 1; i++){
 
 		Ip sender_ip = Ip(argv[2 * i]);
+		Ip receiver_ip = Ip(argv[2 * i + 1]);
 
 		/* ARP request to get mac addr */
 		packet.eth_.dmac_ = Mac("ff:ff:ff:ff:ff:ff");
@@ -109,7 +110,7 @@ int main(int argc, char* argv[]) {
 				/* Get ARP header */
 				rcvpacket += sizeof(struct EthHdr);
 				arp_hdr = (PArpHdr)rcvpacket;
-				if(arp_hdr->sip() == Ip(argv[2 * i])) break;
+				if(arp_hdr->sip() == sender_ip) break;
 			}
 		}
 		Mac sender_mac = arp_hdr->smac();
@@ -125,9 +126,9 @@ int main(int argc, char* argv[]) {
 		packet.arp_.pln_ = Ip::SIZE;
 		packet.arp_.op_ = htons(ArpHdr::Reply); // reply! 
 		packet.arp_.smac_ = Mac(mac_addr);  // me
-		packet.arp_.sip_ = htonl(Ip(argv[2 * i + 1])); // gateway
+		packet.arp_.sip_ = htonl(receiver_ip); // gateway
 		packet.arp_.tmac_ = sender_mac;
-		packet.arp_.tip_ = htonl(Ip(argv[2 * i])); // sender
+		packet.arp_.tip_ = htonl(sender_ip); // sender
 
 		res = pcap_sendpacket(handle, reinterpret_cast<const u_char*>(&packet), sizeof(EthArpPacket));
 		if (res != 0) {
