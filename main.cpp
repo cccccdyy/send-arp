@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
 		packet.arp_.pln_ = Ip::SIZE;
 		packet.arp_.op_ = htons(ArpHdr::Request);
 		packet.arp_.smac_ = Mac(mac_addr);
-		packet.arp_.sip_ = htonl(Ip("0.0.0.0")); // my ip ?
+		packet.arp_.sip_ = htonl(Ip("0.0.0.0")); 
 		packet.arp_.tmac_ = Mac("00:00:00:00:00:00");
 		packet.arp_.tip_ = htonl(sender_ip); // sender
 
